@@ -6,7 +6,8 @@
 #include "rosneuro_cybathlon/udp_client_server.hpp"
 
 #define NUM_COMMANDS 			2
-#define BCI_COMMANDS 	{771, 773}
+
+int BCI_COMMANDS [NUM_COMMANDS] = {771, 773};
 
 namespace rosneuro {
 
@@ -22,6 +23,7 @@ class Control {
 	private:
 		void on_received(const rosneuro_msgs::NeuroOutput& msg);
 		unsigned int Event2Command(int idevent, unsigned int player);
+		int FindCommand(std::vector<int> predictions, int nclasses);
 
 	private:
 		ros::NodeHandle							nh_;
@@ -37,7 +39,10 @@ class Control {
 		bool 				cmdflag_;
 		bool				eogdetected_;
 		float				reversetime_;
-		unsigned int 		bcievt_p_;
+		int 				bcievt_p_;
+		int 				bcievt_;
+		int 				cmdevt_;
+		float				bcitime_;
 
 };
 

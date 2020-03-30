@@ -7,22 +7,21 @@ namespace rosneuro {
 
 Control::Control(void) : nh_("~") {
 	this->topic_	 	= "/classifier/output";
-	this->cmdflag	 	= false;
-	this->eogdetected 	= false;
-	this->bcievt_p		= 0;
+	this->cmdflag_	 	= false;
+	this->eogdetected_ 	= false;
+	this->bcievt_p_		= 0;
 }
 
 Control::~Control(void) {}
 
 bool Control::configure(void) {
 
-	ros::param::param("~server_ip", this->server_ip_, "127.0.0.1");
+	ros::param::param<std::string>("~server_ip", this->server_ip_, "127.0.0.1");
 	ros::param::param("~port", this->port_, 5555);
-	ros::param::param("~player", this->player_, 1);
-	ros::param::param("~reverse_time", this->reversetime, 2);
+	ros::param::param("~player", (int&) this->player_, 1);
+	ros::param::param("~reverse_time", this->reversetime_, 2.0f);
 
 	this->sub_ = this->nh_.subscribe(this->topic_, 1000, &Control::on_received, this);
-
 
 	return true;
 }
@@ -40,13 +39,13 @@ bool Control::Run(void) {
 	ROS_INFO("Control correctly configured");
 
 	//**** Configuring Game connection ****/	
-	ROS_INFO("Cybathlon Player Id: " << this->player_);
+	ROS_INFO("Cybathlon Player Id: %d", this->player_);
 
 	while(this->CybGame_.connect(this->server_ip_, this->port_) == -1) {
-		ROS_INFO("Waiting for connection to the game ("<<this->server_ip_<<")...");
+		ROS_INFO("Waiting for connection to the game (%s)...", this->server_ip_);
 		ros::Duration(1.0).sleep();
 	}
-	ROS_INFO("Connection to the game ("<<this->server_ip_<<") established");
+	ROS_INFO("Connection to the game (%s) established", this->server_ip_);
 
 	this->start_ = ros::WallTime::now();
 	ROS_INFO("Control started");
@@ -63,50 +62,45 @@ bool Control::Run(void) {
 
 void Control::on_received(const rosneuro_msgs::NeuroOutput& msg) {
 
-	unsigned int idevent = msg.hardpredict.data;
-	for (int i = 0; i < NUM_COMMANDS; ++i) {
-		if (msg.hardpredict.data == BCI_COMMANDS[i]) {
-			this->cmdflag_ = true;
-		}
+	this->bcievt_ = this->FindCommand(msg.hardpredict.data, NUM_COMMANDS);
+	if (this->bcievt_ >= 0) {
+		this->cmdflag_ = true;
 	}
 
 	if (this->cmdflag_ == true) {
-		unsigned int bcievt = idevent;
 		this->end_ = ros::WallTime::now();
-		double bcitime = (this->end_ - this->start_).toNSec() * 1e-6;
-		ROS_INFO("BCI command received: "<<bcievt<<" (after "<<bcitime<<" ms)");
+		this->bcitime_ = (this->end_ - this->start_).toNSec() * 1e-6;
+		ROS_INFO("BCI command received: %d (after %f ms)", this->bcievt_, this->bcitime_);
 		this->start_ = ros::WallTime::now();
-	} else {
-		// EOG detection
-		if(idevent == 1024) {
-			this->eogdetected_ = true;
-			ROS_INFO("eog detected | command disabled (event: "<< idevent<<")");
-		} else if(idevent == 33792) {
-			this->eogdetected_ = false;
-			ROS_INFO("eog timeout elapsed | command enabled (event: "<< idevent<<")");
-		}
-	}
 
-	if (this->cmdflag_ == true) {
-			if(bcitime <= this->reversetime_ && this->bcievt_p_ != bcievt) {
-				unsigned int cmdevt = 770;
+		if(this->bcitime_ <= this->reversetime_ && this->bcievt_p_ != this->bcievt_) {
+				this->cmdevt_ = 770;
 				ROS_INFO("Reverse command");
-			} else {
-				unsigned int cmdevt = bcievt;
-			}
+		} else {
+				this->cmdevt_ = this->bcievt_;
 		}
 
-	if(this->cmdflag_ == true)  {
 		if (this->eogdetected_ == false) {
-			unsigned int cmdcyb = this->Event2Command(cmdevt, this->player_);
+			unsigned int cmdcyb = this->Event2Command(this->cmdevt_, this->player_);
 			for (auto i=0; i<3; i++) {
 				this->CybGame_.send((const void*)&cmdcyb,sizeof(unsigned int));
 				ros::Duration(0.025).sleep();
 			}
-			ROS_INFO("Command sent: " << cmdcyb);
+			ROS_INFO("Command sent: %d", cmdcyb);
 		}
 		this->cmdflag_ = false;
-	}
+
+	} 
+	/*else {
+		// EOG detection
+		if(idevent == 1024) {
+			this->eogdetected_ = true;
+			ROS_INFO("eog detected | command disabled (event: %d)", idevent);
+		} else if(idevent == 33792) {
+			this->eogdetected_ = false;
+			ROS_INFO("eog timeout elapsed | command enabled (event: %d)", idevent);
+		}
+	}*/
 
 }
 
@@ -136,6 +130,14 @@ unsigned int Control::GetPlayerId(char* playerStr) {
 	playerId = std::stoi(playerStr);
 	
 	return playerId;
+}
+
+int Control::FindCommand(std::vector<int> predictions, int nclasses) {
+	int i, idx = -1;
+	for (i = 0; i < nclasses && idx >= 0; i++)
+        if (predictions[i] != 0)
+            idx = i;
+    return idx; 
 }
 
 

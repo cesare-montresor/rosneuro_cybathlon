@@ -1,7 +1,7 @@
 #ifndef UDP_CLIENT_SERVER_CPP
 #define UDP_CLIENT_SERVER_CPP
 
-#include "rosneuro_cybathlon/udp_client_server.h"
+#include "rosneuro_cybathlon/udp_client_server.hpp"
 #include <string.h>
 #include <unistd.h>
 
@@ -71,11 +71,15 @@ udp_client::~udp_client()
  * \param[in] port  The port number.
  */
 
+//int udp_client::connect(const std::string& addr, int port)
+//    : f_port(port)
+//    , f_addr(addr)
 int udp_client::connect(const std::string& addr, int port)
-    : f_port(port)
-    , f_addr(addr)
 {
-	char decimal_port[16];
+	f_port = port;
+    f_addr = addr;
+
+    char decimal_port[16];
     snprintf(decimal_port, sizeof(decimal_port), "%d", f_port);
     decimal_port[sizeof(decimal_port) / sizeof(decimal_port[0]) - 1] = '\0';
     struct addrinfo hints;
@@ -202,10 +206,14 @@ int udp_client::send(const void *msg, size_t size)
  * \param[in] addr  The address we receive on.
  * \param[in] port  The port we receive from.
  */
+//udp_server::udp_server(const std::string& addr, int port)
+//    : f_port(port)
+//    , f_addr(addr)
 udp_server::udp_server(const std::string& addr, int port)
-    : f_port(port)
-    , f_addr(addr)
 {
+    f_port = port;
+    f_addr = addr;
+
     char decimal_port[16];
     snprintf(decimal_port, sizeof(decimal_port), "%d", f_port);
     decimal_port[sizeof(decimal_port) / sizeof(decimal_port[0]) - 1] = '\0';

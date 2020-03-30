@@ -22,6 +22,14 @@ catkin_package(
   DEPENDS
 )
 
+###########
+## Build ##
+###########
+
+include_directories(${catkin_INCLUDE_DIRS} 
+					include
+)
+
 add_library(${PROJECT_NAME}
 	src/Control.cpp
 	src/udp_client_server.cpp
