@@ -2,12 +2,13 @@
 #define ROSNEURO_ACQUISITION_HPP
 
 #include <ros/ros.h>
-#include "rosneuro_msgs/NeuroOutput.h"
+#include "rosneuro_msgs/NeuroEvent.h"
 #include "rosneuro_cybathlon/udp_client_server.hpp"
 
 #define NUM_COMMANDS 			2
 
-int BCI_COMMANDS [NUM_COMMANDS] = {771, 773};
+int BCI_COMMANDS [2] = {773, 771};
+int COMMAND = 899;
 
 namespace rosneuro {
 
@@ -21,9 +22,9 @@ class Control {
 		unsigned int GetPlayerId(char* playerStr);
 
 	private:
-		void on_received(const rosneuro_msgs::NeuroOutput& msg);
+		void on_received(const rosneuro_msgs::NeuroEvent::ConstPtr& msg);
 		unsigned int Event2Command(int idevent, unsigned int player);
-		int FindCommand(std::vector<int> predictions, int nclasses);
+		int FindCommand(int event);
 
 	private:
 		ros::NodeHandle							nh_;
@@ -43,6 +44,8 @@ class Control {
 		int 				bcievt_;
 		int 				cmdevt_;
 		float				bcitime_;
+		int 				idevt_;
+		int 				chkevt_;
 
 };
 

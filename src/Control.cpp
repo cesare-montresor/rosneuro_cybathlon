@@ -6,7 +6,7 @@
 namespace rosneuro {
 
 Control::Control(void) : nh_("~") {
-	this->topic_	 	= "/classifier/output";
+	this->topic_	 	= "/events/bus";
 	this->cmdflag_	 	= false;
 	this->eogdetected_ 	= false;
 	this->bcievt_p_		= 0;
@@ -25,6 +25,7 @@ bool Control::configure(void) {
 
 	return true;
 }
+
 
 bool Control::Run(void) {
 
@@ -51,36 +52,17 @@ bool Control::Run(void) {
 	ROS_INFO("Control started");
 	while(this->nh_.ok() && quit == false) {
 	
-		ros::spinOnce();
-		r.sleep();
-
-	}
-	ROS_INFO("Cybathlon control closed");
-
-	return true;
-}
-
-void Control::on_received(const rosneuro_msgs::NeuroOutput& msg) {
-
-	this->bcievt_ = this->FindCommand(msg.hardpredict.data, NUM_COMMANDS);
-	if (this->bcievt_ >= 0) {
-		this->cmdflag_ = true;
-	}
-
-	if (this->cmdflag_ == true) {
-		this->end_ = ros::WallTime::now();
-		this->bcitime_ = (this->end_ - this->start_).toNSec() * 1e-6;
-		ROS_INFO("BCI command received: %d (after %f ms)", this->bcievt_, this->bcitime_);
-		this->start_ = ros::WallTime::now();
-
-		if(this->bcitime_ <= this->reversetime_ && this->bcievt_p_ != this->bcievt_) {
-				this->cmdevt_ = 770;
-				ROS_INFO("Reverse command");
-		} else {
-				this->cmdevt_ = this->bcievt_;
-		}
-
-		if (this->eogdetected_ == false) {
+ 	  if (this->cmdflag_ == true) {
+	
+	     if(this->bcitime_ <= this->reversetime_ && this->bcievt_p_ != this->bcievt_) {
+		    this->cmdevt_ = 770;
+		    ROS_INFO("Reverse command");
+		    } 
+	     else {
+		    this->cmdevt_ = this->bcievt_;
+	      }
+  
+	     if (this->eogdetected_ == false) {
 			unsigned int cmdcyb = this->Event2Command(this->cmdevt_, this->player_);
 			for (auto i=0; i<3; i++) {
 				this->CybGame_.send((const void*)&cmdcyb,sizeof(unsigned int));
@@ -88,19 +70,54 @@ void Control::on_received(const rosneuro_msgs::NeuroOutput& msg) {
 			}
 			ROS_INFO("Command sent: %d", cmdcyb);
 		}
-		this->cmdflag_ = false;
+	     this->cmdflag_ = false;
 
-	} 
-	/*else {
-		// EOG detection
-		if(idevent == 1024) {
-			this->eogdetected_ = true;
-			ROS_INFO("eog detected | command disabled (event: %d)", idevent);
-		} else if(idevent == 33792) {
-			this->eogdetected_ = false;
-			ROS_INFO("eog timeout elapsed | command enabled (event: %d)", idevent);
-		}
-	}*/
+	   } 
+
+	  ros::spinOnce();
+	  r.sleep();
+
+	}
+	ROS_INFO("Cybathlon control closed"); 
+
+	return true;
+}
+
+void Control::on_received(const rosneuro_msgs::NeuroEvent::ConstPtr& msg) {
+
+	
+	this->idevt_ = msg->event;
+	
+	 this->chkevt_ = this->FindCommand(this->idevt_);
+
+	 if(this->chkevt_!=-1)
+	 {
+	    this->bcievt_p_ = this->bcievt_;	
+	    this->bcievt_ = this->chkevt_;
+	    this->end_ = ros::WallTime::now();
+	    this->bcitime_ = (this->end_ - this->start_).toNSec() * 1e-6;
+	    ROS_INFO("BCI command received: %d (after %f ms)", this->bcievt_, this->bcitime_);
+	    this->start_ = ros::WallTime::now();
+	    this->cmdflag_  = true;
+
+	 }
+
+	
+	// Check EOG
+
+	 if(this->idevt_==1024)
+	 {
+		this->eogdetected_ = true;
+		ROS_INFO("eog detected | command disabled (event: %d)", this->idevt_);
+		
+	 }
+	 else if(this->idevt_ == 33792) {
+	        this->eogdetected_ = false;
+	        ROS_INFO("eog timeout elapsed | command enabled (event: %d)", this->idevt_);
+		
+	}
+		
+
 
 }
 
@@ -132,12 +149,17 @@ unsigned int Control::GetPlayerId(char* playerStr) {
 	return playerId;
 }
 
-int Control::FindCommand(std::vector<int> predictions, int nclasses) {
-	int i, idx = -1;
-	for (i = 0; i < nclasses && idx >= 0; i++)
-        if (predictions[i] != 0)
-            idx = i;
-    return idx; 
+
+
+int Control::FindCommand(int event) {	
+	
+	for(int i=0; i< sizeof(BCI_COMMANDS)/sizeof(int); i++) {
+		if(BCI_COMMANDS[i] == event - COMMAND)
+		   return BCI_COMMANDS[i];
+	}
+
+	return -1;
+	
 }
 
 
