@@ -43,10 +43,10 @@ bool Control::Run(void) {
 	ROS_INFO("Cybathlon Player Id: %d", this->player_);
 
 	while(this->CybGame_.connect(this->server_ip_, this->port_) == -1) {
-		ROS_INFO("Waiting for connection to the game (%s)...", this->server_ip_);
+		ROS_INFO("Waiting for connection to the game (%s)...", this->server_ip_.c_str());
 		ros::Duration(1.0).sleep();
 	}
-	ROS_INFO("Connection to the game (%s) established", this->server_ip_);
+	ROS_INFO("Connection to the game (%s) established", this->server_ip_.c_str());
 
 	this->start_ = ros::WallTime::now();
 	ROS_INFO("Control started");
