@@ -21,7 +21,7 @@ bool Control::configure(void) {
 	ros::param::param("~player", (int&) this->player_, 1);
 	ros::param::param("~reverse_time", this->reversetime_, 2000.0f); // in milliseconds
 
-	this->sub_ = this->nh_.subscribe(this->topic_, 1000, &Control::on_received, this);
+	this->sub_ = this->nh_.subscribe(this->topic_, 1, &Control::on_received, this);
 
 	return true;
 }
