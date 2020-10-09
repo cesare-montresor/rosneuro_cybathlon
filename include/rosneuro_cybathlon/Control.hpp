@@ -9,6 +9,8 @@
 
 int BCI_COMMANDS [2] = {773, 771};
 int COMMAND = 899;
+int EOG_EVENT = 1024;
+int EOG_OFF = 33792;
 
 namespace rosneuro {
 
@@ -29,8 +31,11 @@ class Control {
 	private:
 		ros::NodeHandle							nh_;
 		std::string								topic_;
+		ros::Publisher		   					pub_;
 		ros::Subscriber							sub_;
 		ros::WallTime 							start_, end_;
+		ros::WallTime 							eogstart_, eogend_;
+		rosneuro_msgs::NeuroEvent  				eogmsg_;
 		
 		udp_client_server::udp_client 			CybGame_;
 		std::string								server_ip_;
@@ -39,6 +44,8 @@ class Control {
 		unsigned int 		player_;
 		bool 				cmdflag_;
 		bool				eogdetected_;
+		float				eogtime_;
+		float				eogduration_;
 		float				reversetime_;
 		int 				bcievt_p_;
 		int 				bcievt_;

@@ -20,7 +20,9 @@ bool Control::configure(void) {
 	ros::param::param("~port", this->port_, 5555);
 	ros::param::param("~player", (int&) this->player_, 1);
 	ros::param::param("~reverse_time", this->reversetime_, 2000.0f); // in milliseconds
+	ros::param::param("~eog_duration", this->eogduration_, 1000.0f); // in milliseconds
 
+	this->pub_ = this->nh_.advertise<rosneuro_msgs::NeuroEvent>(this->topic_, 1);
 	this->sub_ = this->nh_.subscribe(this->topic_, 1, &Control::on_received, this);
 
 	return true;
@@ -72,7 +74,23 @@ bool Control::Run(void) {
 		}
 	     this->cmdflag_ = false;
 
-	   } 
+	   }
+
+	   		// Check EOG time elapsed
+		if (this->eogdetected_ == true) {
+			this->eogend_ = ros::WallTime::now();
+	    	this->eogtime_ = (this->eogend_ - this->eogstart_).toNSec() * 1e-6;
+	    	if (this->eogtime_ >= this->eogduration_) {
+	    		this->eogdetected_ = false;
+
+	 	 		this->eogmsg_.header.stamp = ros::Time::now();
+	 	 		this->eogmsg_.event = EOG_OFF;
+	
+	 			this->pub_.publish(this->eogmsg_);
+
+	     		ROS_INFO("eog timeout elapsed | command enabled (event: %d)", EOG_OFF);
+	    	}
+		}
 
 	  ros::spinOnce();
 	  r.sleep();
@@ -105,17 +123,17 @@ void Control::on_received(const rosneuro_msgs::NeuroEvent::ConstPtr& msg) {
 	
 	// Check EOG
 
-	 if(this->idevt_==1024)
+	 if(this->idevt_==EOG_EVENT)
 	 {
 		this->eogdetected_ = true;
+		this->eogstart_ = ros::WallTime::now();
 		ROS_INFO("eog detected | command disabled (event: %d)", this->idevt_);
 		
 	 }
-	 else if(this->idevt_ == 33792) {
-	        this->eogdetected_ = false;
-	        ROS_INFO("eog timeout elapsed | command enabled (event: %d)", this->idevt_);
-		
-	}
+	 //else if(this->idevt_ == 33792) {
+	   //     this->eogdetected_ = false;
+	     //   ROS_INFO("eog timeout elapsed | command enabled (event: %d)", this->idevt_);		
+	//}
 		
 
 
